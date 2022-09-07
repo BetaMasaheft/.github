@@ -1,0 +1,7 @@
+{
+    "name": "Validate on Push to Default Branch",
+    "description": "validate files on defaul branch against most recent schema",
+    "categories": [
+        "XML"
+    ]
+}

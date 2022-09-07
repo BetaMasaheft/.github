@@ -1,0 +1,7 @@
+{
+    "name": "Exist Expath Package",
+    "description": "Create .xar package, install into exist, run tests",
+    "categories": [
+        "XQuery", "XML"
+    ]
+}

@@ -1,0 +1,40 @@
+name: exist-db Package
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+       matrix:
+         exist-version: [5.2.0, release]
+         java-version: [8]  
+
+    steps:
+      # Prepare Host
+      - uses: actions/checkout@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      # Install test depdendencies
+      - name: Install Bats
+        run: sudo apt-get -y install bats
+      # Build Expath Package 
+      - name: Build Expath Package
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+      - run: ant 
+      # Install Package 
+      - name: Install package and start exist instance
+        run: docker run -dit -p 8080:8080 -p 8443:8433 -v ${{ github.workspace }}/build:/exist/autodeploy:ro --name exist-ci existdb/existdb:${{ matrix.exist-version }}
+      - name: wait for instance
+        run: sleep 15
+      # Test 
+      - name: Run Bats Tests
+        run: bats --tap test/*.bats
