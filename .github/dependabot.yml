@@ -1,0 +1,8 @@
+# Specify location of manifest files for each package manager
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "../workflow-templates"
+    schedule:
+      interval: "weekly"
