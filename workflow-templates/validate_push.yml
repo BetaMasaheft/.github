@@ -26,22 +26,22 @@ jobs:
           path: schema
       - name: Install Test Dependencies
         run: |
-    sudo apt-get update
-    sudo apt-get install -y libxml2-utils
-      # validate all TEI-files in chunks
-      - name: Validate files
-        run: |
-          find . -type f -name '*.xml' \
-            -not -name 'facsimile*' \
-            -not -name 'transkribus*' \
-            -not -name 'build.xml' \
-            -not -name 'repo.xml' \
-            -not -name 'expath-pkg.xml' \
-            -print0 | \
-          xargs -0 \
-          xmllint --noout --xinclude --nowarning \
-          --relaxng ../schema/tei-betamesaheft.rng 2>&1 | \
-          { grep 'fails to validate' || :; }      
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+            # validate all TEI-files in chunks
+            - name: Validate files
+              run: |
+                find . -type f -name '*.xml' \
+                  -not -name 'facsimile*' \
+                  -not -name 'transkribus*' \
+                  -not -name 'build.xml' \
+                  -not -name 'repo.xml' \
+                  -not -name 'expath-pkg.xml' \
+                  -print0 | \
+                xargs -0 \
+                xmllint --noout --xinclude --nowarning \
+                --relaxng ../schema/tei-betamesaheft.rng 2>&1 | \
+                { grep 'fails to validate' || :; }      
       - name: Build Expath Package
         uses: actions/setup-java@v3
         with:

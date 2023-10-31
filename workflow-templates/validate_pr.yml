@@ -30,10 +30,10 @@ jobs:
       - name: Check for changed source files
         id: changed
         run: |
-          echo "::set-output name=files::$( \
+          echo "files=$( \
             git diff --name-only --diff-filter=ACMRT \
             ${{ github.event.pull_request.base.sha }} \
-            ${{ github.sha }} -- './**/*.xml,!./**/transkribus*.xml,!./**/facsimile*.xml' | xargs)"
+            ${{ github.sha }} -- './**/*.xml,!./**/transkribus*.xml,!./**/facsimile*.xml' | xargs)" >> $GITHUB_OUTPUT
       # Validate changed files against latest schema
       - name: Validate changed source files
         if: ${{ steps.changed.outputs.files != '' }}
