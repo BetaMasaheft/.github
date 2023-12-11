@@ -30,26 +30,37 @@ jobs:
       - name: Check for changed source files
         id: changed
         run: |
-          echo "files=$( \
-            git diff --name-only --diff-filter=ACMRT \
+          {
+            echo "files=$(git diff --name-only --diff-filter=ACMRT \
             ${{ github.event.pull_request.base.sha }} \
-            ${{ github.sha }} -- './**/*.xml,!./**/transkribus*.xml,!./**/facsimile*.xml' | xargs)" >> $GITHUB_OUTPUT
+            ${{ github.sha }} \
+            -- '*.xml' '**/*.xml' ':!*/transkribus*.xml' ':!*/facsimile*.xml' | xargs)"
+          } >> "$GITHUB_OUTPUT"
+      # If no xml files were modified ...
+      - name: No source files changed
+        if: ${{ steps.changed.outputs.files == '' }}
+        run: |
+          echo "All good"
+      # ... otherwise
+      - name: List modified documents
+        env:
+          FILES: ${{ steps.changed.outputs.FILES }}
+        if: ${{ steps.changed.outputs.FILES != '' }}  
+        run: |
+          echo "modified: $FILES"
       # Validate changed files against latest schema
       - name: Validate changed source files
+        env:
+          FILES: ${{ steps.changed.outputs.FILES }}
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
           xmllint \
             --noout --xinclude --nowarning \
             --relaxng ../schema/tei-betamesaheft.rng \
-            ${{ steps.changed.outputs.files }} \
+            $FILES \
             2>&1 | \
             { grep -vE 'RNG|validates' || :; }
-      # If no xml files were modified
-      - name: No source files changed
-        if: ${{ steps.changed.outputs.files == '' }}
-        run: |
-          echo "All good"
-      # ensure branch conaints only well-formed xml files 
+      # ensure branch contains only well-formed xml files 
       - name: Ensure all XML files are well formed
         run: |
           xmllint --noout \
