@@ -31,14 +31,16 @@ jobs:
         id: changed
         run: |
           {
-            echo "files=$(git diff --name-only --diff-filter=ACMRT \
+            echo "FILES=$(git diff --name-only --diff-filter=ACMRT \
             ${{ github.event.pull_request.base.sha }} \
             ${{ github.sha }} \
-            -- '*.xml' '**/*.xml' ':!*/transkribus*.xml' ':!*/facsimile*.xml' | xargs)"
+            -- ':./**/*.xml' ':!*/transkribus*.xml' ':!*/facsimile*.xml' \
+            ':!./**/edition.xml' ':!./**/msDesc.xml' ':!./**/*text.xml' \
+            ':!./**/taxonomy.xml' ':*.xml' ':!build.xml' ':!expath-pkg.xml' ':!repo.xml' | xargs)"     
           } >> "$GITHUB_OUTPUT"
       # If no xml files were modified ...
       - name: No source files changed
-        if: ${{ steps.changed.outputs.files == '' }}
+        if: ${{ steps.changed.outputs.FILES == '' }}
         run: |
           echo "All good"
       # ... otherwise
@@ -52,7 +54,7 @@ jobs:
       - name: Validate changed source files
         env:
           FILES: ${{ steps.changed.outputs.FILES }}
-        if: ${{ steps.changed.outputs.files != '' }}
+        if: ${{ steps.changed.outputs.FILES != '' }}
         run: |
           xmllint \
             --noout --xinclude --nowarning \
