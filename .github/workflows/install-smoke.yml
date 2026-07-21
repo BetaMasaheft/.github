@@ -1,9 +1,13 @@
 name: Install smoke (reusable)
 
-# Shared CI job for repos that ship a single expath xar and just need to
-# prove it autodeploys cleanly into a bare eXist. Pairs with
-# test/install-smoke.bats in this repo. See BetaMasaheft/BetMasApi#29 for
-# where this pattern (and its bug fixes) came from.
+# Shared CI job: build this repo's own xar, then install it (and anything
+# it declares as a dependency) into a bare eXist via xst - not a volume
+# mount into /exist/autodeploy, which only works for self-contained xars
+# with no declared dependencies (AutoDeploymentTrigger just installs
+# whatever's sitting in that directory, with no registry resolution).
+# Pairs with test/install-smoke.bats in this repo. See
+# BetaMasaheft/BetMasApi#29 for where this pattern (and its bug fixes)
+# came from.
 
 on:
   workflow_call:
@@ -21,6 +25,35 @@ on:
         required: false
         type: string
         default: "8"
+      registry-url:
+        description: >
+          Base registry URL, short form (no trailing /public). `from-registry`
+          calls use this as-is; `local-files` calls append /public - the two
+          xst subcommands expect different URL shapes against the same
+          registry (confirmed empirically, see BetaMasaheft/.github's PR
+          history for this workflow).
+        required: false
+        type: string
+        default: https://exist-db.org/exist/apps/public-repo
+      extra-packages:
+        description: >
+          Newline-separated, ordered list of package QNames or abbrevs (e.g.
+          monex, functx) to install via `xst package install from-registry`
+          before this repo's own package. Leave empty if there are none.
+        required: false
+        type: string
+        default: ""
+      extra-xars-artifact:
+        description: >
+          Name of a GitHub Actions artifact - built and uploaded by a job in
+          the *calling* workflow, not this one - containing one or more
+          pre-built .xar files to install via `local-files` before this
+          repo's own package. Install order follows filename sort order, so
+          name files accordingly (e.g. 01-Foo.xar, 02-Bar.xar) if it matters.
+          Leave empty if there's nothing to install this way.
+        required: false
+        type: string
+        default: ""
       shared-ref:
         description: "Ref of BetaMasaheft/.github to pull the shared bats file from."
         required: false
@@ -60,10 +93,9 @@ jobs:
 
       - run: ant
 
-      - name: Start eXist with this repo's xar autodeployed
+      - name: Start a bare eXist instance
         run: |
-          docker run -dit -p 8080:8080 -v ${{ github.workspace }}/build:/exist/autodeploy \
-            --name exist --rm \
+          docker run -dit -p 8080:8080 --name exist --rm \
             --health-interval=2s --health-timeout=5s --health-start-period=8s --health-retries=3 \
             ${{ inputs.existdb-image }}
 
@@ -78,6 +110,41 @@ jobs:
           # start_period+interval+timeout=15s, and bats should always get
           # to report the real status rather than hang behind a timeout.
           sleep 15
+
+      - name: Install extra packages from the registry
+        if: inputs.extra-packages != ''
+        env:
+          EXISTDB_SERVER: http://localhost:8080
+          EXISTDB_USER: admin
+          EXISTDB_PASS: ""
+        run: |
+          echo "${{ inputs.extra-packages }}" | while read -r pkg; do
+            [ -z "$pkg" ] && continue
+            echo "Installing $pkg from registry..."
+            npx --yes @existdb/xst@^4 package install from-registry "$pkg" --registry "${{ inputs.registry-url }}"
+          done
+
+      - name: Download extra pre-built xars artifact
+        if: inputs.extra-xars-artifact != ''
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.extra-xars-artifact }}
+          path: extra-xars
+
+      - name: Install extra pre-built xars
+        if: inputs.extra-xars-artifact != ''
+        env:
+          EXISTDB_SERVER: http://localhost:8080
+          EXISTDB_USER: admin
+          EXISTDB_PASS: ""
+        run: npx --yes @existdb/xst@^4 package install local-files $(ls -1 extra-xars/*.xar | sort) --registry "${{ inputs.registry-url }}/public"
+
+      - name: Install this repo's package
+        env:
+          EXISTDB_SERVER: http://localhost:8080
+          EXISTDB_USER: admin
+          EXISTDB_PASS: ""
+        run: npx --yes @existdb/xst@^4 package install local-files build/*.xar --registry "${{ inputs.registry-url }}/public"
 
       - name: Checkout shared test suite
         uses: actions/checkout@v7
