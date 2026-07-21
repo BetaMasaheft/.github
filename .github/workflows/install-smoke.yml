@@ -1,0 +1,96 @@
+name: Install smoke (reusable)
+
+# Shared CI job for repos that ship a single expath xar and just need to
+# prove it autodeploys cleanly into a bare eXist. Pairs with
+# test/install-smoke.bats in this repo. See BetaMasaheft/BetMasApi#29 for
+# where this pattern (and its bug fixes) came from.
+
+on:
+  workflow_call:
+    inputs:
+      package-uri:
+        description: "Override the package URI to check for in deploy logs. Defaults to this repo's expath-pkg.xml <package name=...> attribute."
+        required: false
+        type: string
+        default: ""
+      existdb-image:
+        required: false
+        type: string
+        default: duncdrum/existdb:release-slim
+      java-version:
+        required: false
+        type: string
+        default: "8"
+      shared-ref:
+        description: "Ref of BetaMasaheft/.github to pull the shared bats file from."
+        required: false
+        type: string
+        default: main
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve package URI
+        id: pkg
+        run: |
+          uri="${{ inputs.package-uri }}"
+          if [ -z "$uri" ]; then
+            uri=$(grep -o 'name="[^"]*"' expath-pkg.xml | head -1 | sed 's/name="//;s/"$//')
+          fi
+          if [ -z "$uri" ]; then
+            echo "::error::could not resolve a package URI from expath-pkg.xml and none was passed in"
+            exit 1
+          fi
+          echo "Resolved package URI: $uri"
+          echo "uri=$uri" >> "$GITHUB_OUTPUT"
+
+      - name: Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: ${{ inputs.java-version }}
+
+      - run: ant
+
+      - name: Start eXist with this repo's xar autodeployed
+        run: |
+          docker run -dit -p 8080:8080 -v ${{ github.workspace }}/build:/exist/autodeploy \
+            --name exist --rm \
+            --health-interval=2s --health-timeout=5s --health-start-period=8s --health-retries=3 \
+            ${{ inputs.existdb-image }}
+
+      - name: Wait for server to start
+        timeout-minutes: 2
+        run: |
+          until docker logs exist 2>&1 | grep -q "Server has started"; do
+            echo "Still waiting..."
+            sleep 2
+          done
+          # Fixed sleep, not a wait-for-healthy loop: settles within
+          # start_period+interval+timeout=15s, and bats should always get
+          # to report the real status rather than hang behind a timeout.
+          sleep 15
+
+      - name: Checkout shared test suite
+        uses: actions/checkout@v7
+        with:
+          repository: BetaMasaheft/.github
+          ref: ${{ inputs.shared-ref }}
+          path: .shared-ci
+
+      - name: Run smoke test
+        env:
+          PACKAGE_URI: ${{ steps.pkg.outputs.uri }}
+        run: bats --tap .shared-ci/test/install-smoke.bats
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs exist
