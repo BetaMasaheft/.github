@@ -33,12 +33,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install bats and xmllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats libxml2-utils
+
       - name: Resolve package URI
         id: pkg
         run: |
           uri="${{ inputs.package-uri }}"
           if [ -z "$uri" ]; then
-            uri=$(grep -o 'name="[^"]*"' expath-pkg.xml | head -1 | sed 's/name="//;s/"$//')
+            uri=$(xmllint --xpath 'string(/*[local-name()="package"]/@name)' expath-pkg.xml)
           fi
           if [ -z "$uri" ]; then
             echo "::error::could not resolve a package URI from expath-pkg.xml and none was passed in"
@@ -46,11 +51,6 @@ jobs:
           fi
           echo "Resolved package URI: $uri"
           echo "uri=$uri" >> "$GITHUB_OUTPUT"
-
-      - name: Install bats
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bats
 
       - name: Install Java
         uses: actions/setup-java@v5
