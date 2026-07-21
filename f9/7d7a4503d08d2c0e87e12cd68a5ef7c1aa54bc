@@ -1,0 +1,21 @@
+.github/workflows/install-smoke.yml
+  s_f621eb37f8854e::t_ad572160737e9f 3-10,28-56,96,98,114-126,128-147
+  s_f621eb37f8854e::t_25ec5d7413c85c 127
+  s_f621eb37f8854e::t_356cf41f565640 148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "f97d7a4503d08d2c0e87e12cd68a5ef7c1aa54bc",
+  "prompts": {},
+  "sessions": {
+    "s_f621eb37f8854e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "50c55e94-39a7-4bfc-8532-53c810e8d334",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "duncdrum <d.paterson@me.com>"
+    }
+  }
+}
