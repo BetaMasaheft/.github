@@ -1,0 +1,20 @@
+.github/workflows/install-smoke.yml
+  h_ff0005bef58c9d 65
+workflow-templates/validate_pr.yml
+  h_ff0005bef58c9d 11
+workflow-templates/exist_package.yml
+  h_ff0005bef58c9d 7
+workflow-templates/validate_push.yml
+  h_ff0005bef58c9d 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d42a920da7877d165058a360f35ba8372cadb908",
+  "prompts": {},
+  "humans": {
+    "h_ff0005bef58c9d": {
+      "author": "duncdrum <d.paterson@me.com>"
+    }
+  }
+}
